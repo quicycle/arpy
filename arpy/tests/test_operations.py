@@ -1,15 +1,25 @@
-from utils import metrics
-from arpy import Alpha, Pair, MultiVector, find_prod, inverse, dagger, \
-    commutator, project, config, ARConfig
+from .. import (
+    Alpha,
+    ARConfig,
+    MultiVector,
+    Term,
+    commutator,
+    config,
+    dagger,
+    find_prod,
+    inverse,
+    project,
+)
+from .utils import metrics
 
-ap = Alpha('p')
-neg_ap = Alpha('-p')
+ap = Alpha("p")
+neg_ap = Alpha("-p")
 
 
 def test_inverse():
-    '''
+    """
     Inverting an α and multiplying by the original should give αp
-    '''
+    """
     for metric in metrics:
         for index in config.allowed:
             new_config = ARConfig(config.allowed, metric, config.division_type)
@@ -18,20 +28,32 @@ def test_inverse():
             assert find_prod(alpha, inverse_alpha, cfg=new_config) == ap
 
 
+def test_dagger_alpha():
+    """dagger works correctly for alphas"""
+    for metric in metrics:
+        new_config = ARConfig(config.allowed, metric, config.division_type)
+
+        for ix in new_config.allowed:
+            sign = find_prod(Alpha(ix), Alpha(ix), cfg=new_config)._sign
+            a1 = Alpha(index=ix, sign=sign, cfg=new_config)
+            a2 = dagger(Alpha(ix, cfg=new_config), cfg=new_config)
+            assert a1 == a2
+
+
 def test_dagger():
-    '''Dagger negates elements that square to -1'''
+    """Dagger negates elements that square to -1"""
     for metric in metrics:
         new_config = ARConfig(config.allowed, metric, config.division_type)
         alphas = [
-            Alpha(a, find_prod(Alpha(a), Alpha(a), cfg=new_config).sign)
+            Alpha(index=a, sign=find_prod(Alpha(a), Alpha(a), cfg=new_config)._sign, cfg=new_config)
             for a in config.allowed
         ]
-        negated = MultiVector([Pair(a) for a in alphas])
+        negated = MultiVector([Term(a) for a in alphas], cfg=new_config)
         assert negated == dagger(MultiVector(config.allowed), cfg=new_config)
 
 
 def test_commutator():
-    '''Commutator results should always be +-αp'''
+    """Commutator results should always be +-αp"""
     for metric in metrics:
         new_config = ARConfig(config.allowed, metric, config.division_type)
         for i in config.allowed:
@@ -42,10 +64,10 @@ def test_commutator():
 
 
 def test_project_alpha():
-    '''
+    """
     Projecting an Alpha should return the value if and only if the
     number of indices on the Alpha is the grade we are projecting
-    '''
+    """
     a = Alpha("01")
     assert project(a, 2) == a
     assert project(a, 0) is None
@@ -53,30 +75,27 @@ def test_project_alpha():
     assert project(ap, 1) is None
 
 
-def test_project_pair():
-    '''
-    Projecting a Pair should return the value if and only if the
-    number of indices on the Pair's Alpha is the grade we are projecting
-    '''
-    pear = Pair("01")
-    perfectpear = Pair("p")
-    assert project(pear, 2) == pear
-    assert project(pear, 0) is None
-    assert project(perfectpear, 0) == perfectpear
-    assert project(perfectpear, 1) is None
+def test_project_term():
+    """
+    Projecting a Term should return the value if and only if the
+    number of indices on the Term's Alpha is the grade we are projecting
+    """
+    t1 = Term("01")
+    t2 = Term("p")
+    assert project(t1, 2) == t1
+    assert project(t1, 0) is None
+    assert project(t2, 0) == t2
+    assert project(t2, 1) is None
 
 
 def test_project_multivector():
-    '''
+    """
     Projecting a MultiVector should return a new MultiVector that contains
-    only pairs that are of the correct grade
-    '''
-    # NOTE:: (Deggen) The `new MultiVector` part is important! ;)
-    #        Have a look at test_new_component_partial in the
-    #        test_differentials file.
-    multipop = MultiVector(components=[Alpha("01")])
-    pmultipop = MultiVector(components=[Alpha("p")])
-    assert project(multipop, 2) == multipop
-    assert project(multipop, 0) == MultiVector()
-    assert project(pmultipop, 0) == pmultipop
-    assert project(pmultipop, 2) == MultiVector()
+    only terms that are of the correct grade
+    """
+    m1 = MultiVector([Alpha("01")])
+    m2 = MultiVector([Alpha("p")])
+    assert project(m1, 2) == m1
+    assert project(m1, 0) == MultiVector()
+    assert project(m2, 0) == m2
+    assert project(m2, 2) == MultiVector()
